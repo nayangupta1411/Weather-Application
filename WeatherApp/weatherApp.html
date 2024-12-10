@@ -1,0 +1,640 @@
+<html>
+  <head>
+    <title>Weather App</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/js/standalone/selectize.min.js"
+      integrity="sha256-+C0A5Ilqmu4QcSPxrlGpaZxJ04VjsRjKu+G82kl5UJk="
+      crossorigin="anonymous"
+    ></script>
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/css/selectize.bootstrap3.min.css"
+      integrity="sha256-ze/OEYGcFbPRmvCnrSeKbRTtjG4vGLHXgOqsyLFTRjg="
+      crossorigin="anonymous"
+    />
+
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
+      integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.0/css/all.css" integrity="sha384-lZN37f5QGtY3VHgisS14W3ExzMWZxybE1SJSEsQp9S+oqd12jhcu+A56Ebc1zFSJ" crossorigin="anonymous">
+    <link rel="stylesheet" href="WeatherApp.css" />
+  </head>
+
+
+  <body onload="onLoadFunction();">
+    <div>
+      <h3 class="head p-2">🌞 Weather Forecast</h3>
+    </div>
+
+
+  
+    <div class="container-fluid row">
+
+      <!-- Left Side city location view -->
+
+      <div class="container col-lg-4">
+        <div class="container search pt-3 col-lg-12">
+          <h6>Enter City Name</h6>
+          <form onsubmit="event.preventDefault(); getWeather();" method="POST">
+            <div class="container-fluid center">
+              <div class="container form-row">
+                <div class="col-2"></div>
+                <input
+                  name="city"
+                  id="city"
+                  type="text"
+                  placeholder="city"
+                  class="form-control col-8"
+                  required
+                />
+                <div class="col-2">
+                  <button type="button" class="btn btn-outline-warning" onclick="getLocation();"><i class="fas fa-map-marker-alt p-1"></i></button>
+                </div>
+              </div>
+              <div class="container pt-2">
+                <div id="location"></div>
+                <button type="submit" class="btn btn-primary">Search</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      
+      <div class="container-fluid col-lg-1 vertical pt-3"></div>
+
+      <!-- Right Side Country State city location view -->
+
+      <div class="container-fluid csc col-lg-7 pt-3 row">
+        <div class="form-group col-lg-4">
+          <label> <h6>Country Name</h6></label>
+          <select class="form-control" id="country">
+            <option value="India" selected>India</option>
+          </select>
+        </div>
+
+        <div class="form-group col-lg-4">
+          <label> <h6>State Name</h6></label>
+          <select class="form-control" id="state">
+            <option value="" selected>Select your State</option>
+          </select>
+        </div>
+
+        <div class="form-group col-lg-4">
+          <label> <h6>City Name</h6></label>
+          <select class="form-control" id="cityName">
+            <option value="" selected>Select your city</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Forecast table view -->
+    <div id="forecastTable"></div>
+
+
+    <!-- date select option -->
+    <div class="form-group col-3" id="dateShow">
+      <label> Dates</label>
+      <select class="form-control" id="date">
+        <option value="" selected disabled>Select Date</option>
+      </select>
+    </div>
+
+    <!-- chart present here -->
+    <div class="container-fluid col-6">
+      <canvas id="weatherChart" width="400" height="200"></canvas>
+    </div>
+    <script>
+   
+     // getLocation fun generate latitude and longitude coordinates of the city and send to sendLocation function
+   
+     function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(sendLocation,showError,{ enableHighAccuracy : true});
+            } else {
+                document.getElementById("location").innerHTML = "Geolocation is not supported by this browser.";
+            }
+        }
+
+        function showError(error){
+          switch (error.code){
+            case error.PERMISSION_DENIED:
+            document.getElementById("location").innerHTML="User denied"
+            break;
+
+            case error.POSITION_UNAVAILABLE:
+            document.getElementById("location").innerHTML="location unavailable"
+          }
+        }
+        
+        // sendLocation send the coordinates to the location api and get city name as a response set the value for the input box
+        
+        async function sendLocation(position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+ 
+            const response=await fetch('http://127.0.0.1:5000/location', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ latitude: lat, longitude: lon })
+            });
+
+            const data =await response.json()
+            console.log('data city location --',data.city)
+            document.getElementById("city").value = data.city;
+            
+          
+        }
+  
+      //getWeather function send the city name to weather api and get 7 days forecast data 
+
+      async function getWeather(data) {
+        const city = document.getElementById("city").value;
+        console.log(city);
+
+        const response = await fetch("http://127.0.0.1:5000/weather", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          responseType: "json",
+          body: JSON.stringify({ city: city }),
+        });
+        const singleData = await response.json();
+        console.log("simple weather api", singleData);
+        var resultData;
+
+        // when data getWeather function get argument from city api data  and send data to the getDate function
+
+        if (data) {
+          resultData = data.res;
+          getDate(data);
+        } 
+
+        // when data getWeather function doesn't get any argument which mean city name get from left panel searching box and send data to the getDate function
+
+        else {
+          resultData = singleData.res;
+          getDate(singleData);
+        }
+
+        // set forecast data into a tabluar form
+
+        let table = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Temperature (°C)</th>
+                            <th>Max Temp (°C)</th>
+                            <th>Min Temp (°C)</th>
+                            <th>Condition</th>
+                            <th>Weather Symbol</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+        resultData.forEach((item) => {
+          let status='';
+          if (item.Conditions=='Clear'){
+            status='☀️'
+          }
+          if (item.Conditions=='Partially cloudy'){
+            status='⛅'
+          }
+          if (item.Conditions=='Rain'){
+            status='🌧️'
+          }
+          if (item.Conditions=='Rain, Partially cloudy'){
+            status='🌦️'
+          }
+          
+
+          table += `
+                    <tr>
+                         <td>${item.Date}</td>
+                        <td>${item.Temp}</td>
+                        <td>${item.TempMax}</td>
+                        <td>${item.TempMin}</td>
+                        <td>${item.Conditions}</td>
+                        <td>${status}</td>
+
+                    </tr>
+                `;
+        });
+
+        table += `
+                    </tbody>
+                </table>
+            `;
+
+        document.getElementById("forecastTable").innerHTML = table;
+      }
+      
+      // onLoadFunction function works when page is loaded and generate a forecast table for Mumbai city
+
+      async function onLoadFunction() {
+        const defaultValue = true;
+        const response = await fetch("http://127.0.0.1:5000/state", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          responseType: "json",
+          body: JSON.stringify({ selectCountryName: "India" }),
+        });
+        const data = await response.json();
+        getState(data, "India", defaultValue);
+
+        const response2 = await fetch("http://127.0.0.1:5000/city", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          responseType: "json",
+          body: JSON.stringify({
+            selectStateName: "Maharashtra",
+            selectCountryName: "India",
+          }),
+        });
+        const data2 = await response2.json();
+
+        getCity(data2, defaultValue);
+
+        const response3 = await fetch("http://127.0.0.1:5000/weather", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          responseType: "json",
+          body: JSON.stringify({ city: "Mumbai" }),
+        });
+
+        const data3 = await response3.json();
+        console.log("data3", data3.res[1].Date);
+        getWeather(data3);
+
+        const response4 = await fetch("http://127.0.0.1:5000/get_Date", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          responseType: "json",
+          body: JSON.stringify({
+            date: data3.res[1].Date,
+            city: "Mumbai",
+          }),
+        });
+
+        const data4 = await response4.json();
+       
+        weatherChart(data4);
+      }
+
+
+      //getCountry function get the all country name from data api which uses the data.json file
+
+      async function getCountry() {
+        try {
+          const response = await fetch("http://127.0.0.1:5000/data");
+          const data = await response.json();
+          resCountry = data.country;
+          const con = document.getElementById("country");
+          const state = document.getElementById("state");
+          state.innerHTML = "";
+          const preOption = document.createElement("option");
+          preOption.value = "";
+          preOption.text = "Select your State";
+          state.add(preOption);
+          const city = document.getElementById("cityName");
+          city.innerHTML = "";
+          const preOptionCity = document.createElement("option");
+          preOptionCity.value = "";
+          preOptionCity.text = "Select your City";
+          city.add(preOptionCity);
+          resCountry.forEach((option) => {
+            const newOption = document.createElement("option");
+            newOption.value = option;
+            newOption.textContent = option;
+            con.add(newOption);
+          });
+
+          $("#country").selectize();
+
+          $("#country").on("change", function () {
+            if ($("#state")[0].selectize) {
+              $("#state")[0].selectize.destroy();
+             
+              state.innerHTML = "Select your State";
+              state.add(preOption);
+              city.innerHTML="Select you city"
+              city.add(preOptionCity);
+            }
+
+            var selectCountry = $(this).val();
+            console.log("sel con->", selectCountry);
+            setCountryName(selectCountry);
+
+            //setCountryName is use for send the country name to the state api and get all states name of selected country and send the state name list to the getState function
+
+            async function setCountryName(selectCountry) {
+              const response = await fetch("http://127.0.0.1:5000/state", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                responseType: "json",
+                body: JSON.stringify({ selectCountryName: selectCountry }),
+              });
+
+              const data = await response.json();
+              getState(data, selectCountry);
+             
+            }
+          });
+        } catch (error) {
+          console.error(error);
+        }
+      }
+      console.log(getCountry());
+     
+      // getState is use for set the options of state for the state select tag
+
+      async function getState(data, selectCountry, defaultValue) {
+        if (data) {
+          resState = data.states;
+          console.log("resState -->", resState);
+          const state = document.getElementById("state");
+
+          state.innerHTML = "";
+          state.disabled = false;
+
+          const city = document.getElementById("cityName");
+          city.innerHTML = "";
+          const preOptionCity = document.createElement("option");
+          preOptionCity.value = "";
+          preOptionCity.text = "Select your city";
+          city.add(preOptionCity);
+
+          const preOption = document.createElement("option");
+          preOption.value = "";
+
+          if (defaultValue) {
+            const city = document.getElementById("cityName");
+            city.innerHTML = "";
+            const preOptionCity = document.createElement("option");
+            preOptionCity.value = "";
+            preOptionCity.text = "Mumbai";
+            city.add(preOptionCity);
+
+            preOption.text = "Maharashtra";
+            state.add(preOption);
+          } else {
+            preOptionCity.text = "Select your city";
+            city.add(preOptionCity);
+
+            preOption.text = "Select your State";
+            state.add(preOption);
+          }
+
+          resState.forEach((option) => {
+            const newOption = document.createElement("option");
+            newOption.value = option;
+            newOption.textContent = option;
+            state.add(newOption);
+          });
+          console.log("state name -->", state);
+
+          $("#state").selectize();
+          console.log("selectize-->", $("#state"));
+          console.log("data--?", data);
+          $("#state").on("change", function () {
+            if ($("#cityName")[0].selectize) {
+              $("#cityName")[0].selectize.destroy();
+              city.innerHTML = "Select your city";
+              city.add(preOptionCity);
+            }
+            var selectState = $(this).val();
+            console.log("city con->", selectState);
+            setState(selectState);
+            
+            // getState function is send the state name, which is selected from the option, to the city api and get all city name of that state as a response and send to the getCity function
+            async function setState(selectState) {
+              const response = await fetch("http://127.0.0.1:5000/city", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                responseType: "json",
+                body: JSON.stringify({
+                  selectStateName: selectState,
+                  selectCountryName: selectCountry,
+                }),
+              });
+
+              const data = await response.json();
+              getCity(data);
+              console.log("state city data--?", data);
+            }
+          });
+        }
+      }
+
+      
+      // getCity function set the city as a option for city select tah
+
+      async function getCity(data, defaultValue) {
+        console.log("city data--?", data);
+        if (data) {
+          resCity = data.cities;
+          const city = document.getElementById("cityName");
+          city.disabled = false;
+          resCity.forEach((option) => {
+            const newOption = document.createElement("option");
+            newOption.value = option;
+            newOption.textContent = option;
+            city.add(newOption);
+          });
+          $("#cityName").selectize();
+          $("#cityName").on("change", function () {
+            var selectCity = $(this).val();
+            console.log("city con->", selectCity);
+            setCity(selectCity);
+            
+            // setCity function send the city name, which is selected, to the weather api and get 7 days forecast weather data and send to the getWeather function as a arguments
+            async function setCity(selectCity) {
+              const response = await fetch("http://127.0.0.1:5000/weather", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                responseType: "json",
+                body: JSON.stringify({ city: selectCity }),
+              });
+
+              const data = await response.json();
+              getWeather(data);
+              console.log("city name data--?", data);
+            }
+          });
+        }
+      }
+
+
+      // after getting data from weather api, getDate function is set the date as a options for date select tag 
+
+      async function getDate(data) {
+        if (data) {
+          const dateShow = document.getElementById("dateShow");
+          dateShow.style.display = "block";
+          const date = document.getElementById("date");
+          date.innerHTML = "";
+          const preOptionDate = document.createElement("option");
+          preOptionDate.value = "";
+          preOptionDate.text = "Select the date";
+          date.add(preOptionDate);
+
+          console.log("dates -->", data);
+          // weatherChart({'dates':data.res[1].Date,'cityName':data.city})
+       
+          resDate = data.res;
+          resWeatherCity = data.city;
+          resDate.forEach((option) => {
+            const newOption = document.createElement("option");
+            newOption.value = option.Date;
+            newOption.textContent = option.Date;
+            date.add(newOption);
+          });
+          
+          // this response5 sends the next day's date, starting form the cuurent date by default.
+
+          const response5 = await fetch("http://127.0.0.1:5000/get_Date", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                responseType: "json",
+                body: JSON.stringify({
+                  date: data.res[1].Date,
+                  city: data.city,
+                }),
+              });
+
+              const data5 = await response5.json();
+              console.log("weather chart data ->", data);
+              weatherChart(data5);
+         
+          $("#date").on("change", function () {
+            if ($("#date")[0].selectize) {
+              $("#date")[0].selectize.destroy();
+              date.innerHTML = "Select the date";
+              date.add(preOptionDate);
+            }
+            var selectDate = $(this).val();
+            console.log("date city con->", selectDate,resWeatherCity);
+            setDate(selectDate);
+            
+            // setDate send the selected date and city name to the get_Date api and get the full day forecast with 3hr. interval data for the selected date and send the retrieve data to the weatherChart function
+
+            async function setDate(selectDate) {
+              const response = await fetch("http://127.0.0.1:5000/get_Date", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                responseType: "json",
+                body: JSON.stringify({
+                  date: selectDate,
+                  city: resWeatherCity,
+                }),
+              });
+
+              const data = await response.json();
+              console.log("weather chart data ->", data);
+              weatherChart(data);
+            }
+          });
+        }
+      }
+
+
+      // weatherChart function is use for creating a line chart of a full day forecast with 3 hour interval data
+
+      async function weatherChart(data) {
+        if (data) {
+          console.log("weather chart data ->", data);
+          weatherData = data.dates;
+          city_name=data.cityName;
+          selectDate=data.selectDate;
+          console.log("weather chart data ->", weatherData);
+          const labels = weatherData.map((item) => item.time);
+          const tempData = weatherData.map((item) => item.temp);
+
+       
+          var weatherChart;
+          const ctx = document.getElementById("weatherChart").getContext("2d");
+          
+          let chartStatus = Chart.getChart("weatherChart");
+          if (chartStatus) {
+            chartStatus.destroy();
+          }
+
+          weatherChart = new Chart(ctx, {
+            type: "line", // You can use 'bar', 'line', etc.
+            data: {
+              labels: labels, 
+              datasets: [
+                {
+                  label: "Temperature (°C)",
+                  data: tempData, // Temperature values
+                  borderColor: "rgba(75, 192, 192, 1)",
+                  backgroundColor: "rgba(75, 192, 192, 0.2)",
+                  borderWidth: 2,
+                },
+              ],
+            },
+            options: {
+              scales: {
+                x: {
+                  title: {
+                    display: true,
+                    text: "Time (3-hour interval) on "+selectDate+" in "+city_name,
+                  },
+                },
+                y: {
+                  title: {
+                    display: true,
+                    text: "Temperature (°C)",
+                  },
+                },
+              },
+            },
+          });
+        }
+      }
+    
+    
+    </script>
+ 
+    <script
+      src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js"
+      integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js"
+      integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+      crossorigin="anonymous"
+    ></script>
+  </body>
+</html>
