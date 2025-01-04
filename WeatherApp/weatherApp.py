@@ -1,5 +1,5 @@
 
-from flask import Flask,request,jsonify,render_template
+from flask import Flask,request,jsonify
 from flask_cors import CORS
 import json
 import requests
@@ -8,9 +8,7 @@ import numpy as np
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/')
-def index():
-    return render_template('weatherApp.html')
+
 # provide the city name based on latitude and longitude
 def get_city_name(latitude, longitude):
     API_KEY = 'b2f9f608122f4fedb5f706da5d71829d'
